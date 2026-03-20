@@ -1,0 +1,12 @@
+pyproject.toml
+constants/__init__.py
+constants/roles.py
+seta_shared.egg-info/PKG-INFO
+seta_shared.egg-info/SOURCES.txt
+seta_shared.egg-info/dependency_links.txt
+seta_shared.egg-info/requires.txt
+seta_shared.egg-info/top_level.txt
+seta_shared/graphql/__init__.py
+seta_shared/graphql/context.py
+seta_shared/graphql/directives.py
+seta_shared/graphql/scarlars.py

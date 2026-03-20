@@ -2,10 +2,11 @@
 import strawberry
 from typing import Optional
 from datetime import datetime
+from strawberry import Optional
 
 @strawberry.type
 class UserType:
-    id: int
+    user_id: int
     username: str
     email: str
     role: str
@@ -18,7 +19,7 @@ class UserType:
         if not db_user:
             return None
         return cls(
-            id=db_user.id,
+            user_id=db_user.user_id,
             username=db_user.username,
             email=db_user.email,
             role=db_user.role,
@@ -40,6 +41,7 @@ class RegisterInput:
     email: str
     password: str
     role: str = "Member"
+    user_id: Optional[int] = None
 
 @strawberry.input
 class LoginInput:

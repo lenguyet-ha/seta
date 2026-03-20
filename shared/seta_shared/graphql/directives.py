@@ -9,21 +9,18 @@ from abc import ABC, abstractmethod
 
 @dataclass
 class AuthUser:
-    """Decoded user from JWT token"""
     user_id: int
     role: str
     exp: int
     
     
 class TokenDecoder(ABC):
-    """Abstract token decoder - services must implement this"""
     @abstractmethod
     def decode(self, token: str) -> Optional[AuthUser]:
         pass
 
 
 class JWTTokenDecoder(TokenDecoder):
-    """Default JWT decoder"""
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
         self.secret_key = secret_key
         self.algorithm = algorithm
@@ -47,30 +44,25 @@ class JWTTokenDecoder(TokenDecoder):
             return None
 
 
-# Global token decoder - must be configured by each service
 _token_decoder: Optional[TokenDecoder] = None
 
 
 def configure_auth(decoder: TokenDecoder):
-    """Configure the token decoder for the service"""
     global _token_decoder
     _token_decoder = decoder
 
 
 def get_token_decoder() -> TokenDecoder:
-    """Get the configured token decoder"""
     if _token_decoder is None:
         raise RuntimeError("Auth not configured. Call configure_auth() first.")
     return _token_decoder
 
 
 def get_auth_user_from_context(info: Info) -> Optional[AuthUser]:
-    """Extract AuthUser from Strawberry context"""
     return info.context.get("auth_user")
 
 
 def get_token_from_request(info: Info) -> Optional[str]:
-    """Extract bearer token from request headers"""
     request = info.context.get("request")
     if not request:
         return None
@@ -99,13 +91,11 @@ class IsAuthenticated(BasePermission):
         print(f"DEBUG: Auth user from context: {auth_user}")
         
         if auth_user is None:
-            # Try to decode from token
             token = get_token_from_request(info)
             if token:
                 decoder = get_token_decoder()
                 auth_user = decoder.decode(token)
                 if auth_user:
-                    # Store in context for later use
                     info.context["auth_user"] = auth_user
         
         return auth_user is not None
@@ -143,9 +133,8 @@ class HasRole(BasePermission):
             self.message = "Not authenticated"
             return False
         
-        # Check role
         if not self.allowed_roles:
-            return True  # No role restriction
+            return True  
             
         if auth_user.role not in self.allowed_roles:
             self.message = f"Role '{auth_user.role}' not allowed. Required: {self.allowed_roles}"
@@ -170,20 +159,16 @@ def require_roles(*roles: str):
     return RolePermission
 
 
-# Pre-built role permissions using constants
 class IsAdmin(HasRole):
-    """Permission for admin-only access"""
     allowed_roles = ["admin"]
     message = "Admin access required"
 
 
 class IsManager(HasRole):
-    """Permission for manager or admin access"""
     allowed_roles = ["admin", "manager"]
     message = "Manager access required"
 
 
 class IsMember(HasRole):
-    """Permission for any authenticated member"""
     allowed_roles = ["admin", "manager", "member"]
     message = "Member access required"
