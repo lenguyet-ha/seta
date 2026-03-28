@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     
     DATABASE_URL: str = "postgresql://postgres@localhost:5434/postgres"
     AUTH_SERVICE_URL: str = "http://localhost:8001/graphql"
+    REDIS_URL: str = "redis://localhost:6379"
+    REDIS_CACHE_EXPIRE: int = 3600  # Cache expiration in seconds
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

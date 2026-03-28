@@ -5,3 +5,4 @@ psycopg2-binary==2.9.9
 httpx==0.25.1
 strawberry-graphql[fastapi]==0.219.2
 pydantic-settings==2.1.0
+redis==5.0.1
