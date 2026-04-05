@@ -1,6 +1,5 @@
-import httpx
 from app.core.config import settings
-from app.graphql.types import UserCreateInput, QueryUserParams, UpdateUserInput
+from app.graphql.types import CreateUserInput, QueryUserParams, UpdateUserInput
 from sqlalchemy.orm import Session
 from app.models.user import User
 from app.services.cache_service import (
@@ -9,9 +8,14 @@ from app.services.cache_service import (
     get_user_cache_key,
     get_users_list_pattern
 )
+from seta_shared.kafka import (
+    kafka_producer,
+    Topics,
+    UserEvents,
+)
 
 
-async def create_user(db: Session, input_data: UserCreateInput) -> User:
+async def create_user(db: Session, input_data: CreateUserInput) -> User:
     # 1. Check if user already exists in user-service
     db_user = (
         db.query(User)
@@ -34,40 +38,25 @@ async def create_user(db: Session, input_data: UserCreateInput) -> User:
     db.commit()
     db.refresh(new_user)
 
-    # 3. Call auth-service to register credentials
+    # 3. Publish USER_CREATED event to Kafka for auth-service to pick up
     try:
-        async with httpx.AsyncClient() as client:
-            mutation = """
-            mutation Register($id: Int!, $email: String!, $password: String!) {
-              register(input: {
-                userId: $id,
-                email: $email,
-                password: $password
-              }) {
-                id
-              }
-            }
-            """
-            response = await client.post(
-                settings.AUTH_SERVICE_URL,
-                json={
-                    "query": mutation,
-                    "variables": {
-                        "id": new_user.id,
-                        "email": new_user.email,
-                        "password": input_data.password,
-                    },
-                },
-            )
-            response.raise_for_status()
-            result = response.json()
-            if "errors" in result:
-                raise Exception(f"Auth Service error: {result['errors'][0]['message']}")
-
+        await kafka_producer.send_event(
+            topic=Topics.USER_EVENTS,
+            event_type=UserEvents.USER_CREATED,
+            data={
+                "user_id": new_user.id,
+                "username": new_user.username,
+                "email": new_user.email,
+                "role": new_user.role,
+                "password": input_data.password,
+            },
+            key=str(new_user.id),
+        )
     except Exception as e:
+        # If Kafka publish fails, roll back the user creation
         db.delete(new_user)
         db.commit()
-        raise Exception(f"Failed to register user in auth service: {str(e)}")
+        raise Exception(f"Failed to publish user created event: {str(e)}")
 
     # 4. Invalidate users list cache
     await cache_service.delete_pattern(get_users_list_pattern())
@@ -80,8 +69,8 @@ async def update_user(db: Session, input_data: UpdateUserInput) -> User:
     if not db_user:
         raise Exception("User not found")
 
-    if input_data.user_name:
-        db_user.user_name = input_data.user_name
+    if input_data.username:
+        db_user.username = input_data.username
     if input_data.role:
         db_user.role = input_data.role
 

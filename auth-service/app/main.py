@@ -5,10 +5,45 @@ from app.core.config import settings
 from app.core.database import Base, engine, get_db
 from app.graphql.schema import schema
 from seta_shared.graphql import configure_auth, JWTTokenDecoder
+from seta_shared.kafka import (
+    init_kafka_producer,
+    KafkaConsumerService,
+    Topics,
+)
+from contextlib import asynccontextmanager
+import asyncio
+from app.handlers.auth_handlers import register_auth_handlers
 
-Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title=settings.PROJECT_NAME)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    
+    # Start Kafka producer
+    producer = init_kafka_producer(
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+        client_id="auth-service-producer"
+    )
+    await producer.start()
+
+    # Start Kafka consumer to listen for user events
+    consumer = KafkaConsumerService(
+        topics=[Topics.USER_EVENTS],
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
+        group_id="auth-service-group",
+        client_id="auth-service-consumer",
+    )
+    register_auth_handlers(consumer)
+    await consumer.start()
+    
+    consumer_task = asyncio.create_task(consumer.consume())
+    yield
+    
+    await consumer.stop()
+    consumer_task.cancel()
+    await producer.stop()
+
+app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
 
 configure_auth(JWTTokenDecoder(
     secret_key=settings.SECRET_KEY,

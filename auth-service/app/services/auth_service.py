@@ -1,58 +1,9 @@
 from sqlalchemy.orm import Session
 from app.models.credential import Credential
 from app.core.security import get_password_hash, verify_password, create_access_token
-from app.graphql.types import RegisterInput, LoginInput, ChangePasswordInput, UserType, TokenType
+from app.graphql.types import LoginInput, ChangePasswordInput, UserType, TokenType
+from app.core.config import settings
 import httpx
-
-async def register_user(db: Session, input_data: RegisterInput) -> UserType:
-    db_credential = db.query(Credential).filter(
-        (Credential.username == input_data.username) | (Credential.email == input_data.email)
-    ).first()
-    if db_credential:
-        raise Exception("Username or email already registered")
-    try:
-        async with httpx.AsyncClient() as client:
-            mutation = """
-            mutation CreateUser($username: String!, $email: String!, $role: String!) {
-              createUser(input: {
-                username: $username,
-                email: $email,
-                role: $role
-              }) {
-                id
-              }
-            }
-            """
-            response = await client.post(
-               settings.USER_SERVICE_URL,
-                json={
-                    "query": mutation,
-                    "variables": {
-                        "username": input_data.username,
-                        "email": input_data.email,
-                        "role": input_data.role
-                    },
-                },
-            )
-            response.raise_for_status()
-            result = response.json()
-            if "errors" in result:
-                raise Exception(f"User Service error: {result['errors'][0]['message']}")
-            user_id = result["data"]["createUser"]["id"]
-    except httpx.HTTPError as e:
-        raise Exception(f"Failed to create user in User Service: {str(e)}")
-    
-    hashed_password = get_password_hash(input_data.password)
-    new_credential = Credential(
-        username=input_data.username,
-        email=input_data.email,
-        password_hash=hashed_password,
-        user_id=user_id
-    )
-    db.add(new_credential)
-    db.commit()
-    db.refresh(new_credential)
-    return UserType.from_db(new_credential)
 
 async def authenticate_user(db: Session, input_data: LoginInput) -> TokenType:
     credential = db.query(Credential).filter(Credential.email == input_data.email).first()

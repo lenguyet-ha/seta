@@ -11,8 +11,15 @@ dependencies = [
     "strawberry-graphql[fastapi]>=0.220.0",
     "python-jose[cryptography]>=3.3.0",
     "pydantic>=2.0.0",
+    "aiokafka>=0.10.0"
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+ 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["seta_shared*", "constants*"]

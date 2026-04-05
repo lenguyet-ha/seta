@@ -36,14 +36,6 @@ class TokenType:
     valid: bool = True
 
 @strawberry.input
-class RegisterInput:
-    username: str
-    email: str
-    password: str
-    role: str = "Member"
-    user_id: Optional[int] = None
-
-@strawberry.input
 class LoginInput:
     username: str
     password: str

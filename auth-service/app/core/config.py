@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 
     
     DATABASE_URL: str = "postgresql://postgres@localhost:5434/postgres"
-    USER_SERVICE_URL: str = "http://localhost:8000/graphql" 
+    USER_SERVICE_URL: str = "http://localhost:8000/graphql"
+    KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
