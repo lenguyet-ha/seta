@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from strawberry.fastapi import GraphQLRouter
 from sqlalchemy.orm import Session
 from app.core.config import settings
@@ -18,14 +18,14 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     
     producer = init_kafka_producer(
-        bootstrap_servers=settings.KafkaBootstrapServers,
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
         client_id="user-service-producer"
     )
     await producer.start()
 
     consumer = KafkaConsumerService(
         topics=[Topics.USER_EVENTS],
-        bootstrap_servers=settings.KafkaBootstrapServers,
+        bootstrap_servers=settings.KAFKA_BOOTSTRAP_SERVERS,
         group_id="user-service-group",
         client_id="user-service-consumer",
     )

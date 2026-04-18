@@ -2,7 +2,6 @@
 import strawberry
 from typing import Optional
 from datetime import datetime
-from strawberry import Optional
 
 @strawberry.type
 class UserType:

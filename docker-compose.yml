@@ -18,13 +18,15 @@ services:
 
   # Auth Service
   auth-service:
-    build: ./auth-service
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
     ports:
       - "8001:8001"
     environment:
       - DATABASE_URL=postgresql://postgres:1@auth-db:5432/auth_db
       - JWT_SECRET_KEY=your-secret-key-here-change-in-production
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9093
     depends_on:
       auth-db:
         condition: service_healthy
@@ -41,13 +43,15 @@ services:
 
   # User Service
   user-service:
-    build: ./user-service
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
     ports:
       - "8002:8002"
     environment:
       - DATABASE_URL=postgresql://postgres:1@user-db:5432/user_db
       - REDIS_URL=redis://redis:6379
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9093
     depends_on:
       user-db:
         condition: service_healthy
@@ -60,19 +64,19 @@ services:
     restart: unless-stopped
 
   # Log Service
-  log-service:
-    build: ./log-service
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-    depends_on:
-      kafka:
-        condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - microservices-net
-    restart: unless-stopped
+  # log-service:
+  #   build: ./log-service
+  #   environment:
+  #     - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #   depends_on:
+  #     kafka:
+  #       condition: service_healthy
+  #     elasticsearch:
+  #       condition: service_healthy
+  #   networks:
+  #     - microservices-net
+  #   restart: unless-stopped
 
   # Databases
   auth-db:
@@ -131,7 +135,7 @@ services:
 
   # Kafka
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.5.3
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -150,7 +154,7 @@ services:
       retries: 3
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.5.3
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -179,49 +183,49 @@ services:
       retries: 3
 
   # Elastic Stack
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0  # Nâng lên 7.17 stable
-    environment:
-      - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m  # Giới hạn RAM
-      - xpack.security.enabled=false
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - es-data:/usr/share/elasticsearch/data
-    networks:
-      - microservices-net
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0  # Nâng lên 7.17 stable
+  #   environment:
+  #     - discovery.type=single-node
+  #     - ES_JAVA_OPTS=-Xms512m -Xmx512m  # Giới hạn RAM
+  #     - xpack.security.enabled=false
+  #   ports:
+  #     - "9200:9200"
+  #     - "9300:9300"
+  #   volumes:
+  #     - es-data:/usr/share/elasticsearch/data
+  #   networks:
+  #     - microservices-net
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:9200"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
-  kibana:
-    image: docker.elastic.co/kibana/kibana:7.17.0
-    ports:
-      - "5601:5601"
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - ELASTICSEARCH_USERNAME=  # Bỏ qua nếu xpack.security disabled
-      - ELASTICSEARCH_PASSWORD=
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - microservices-net
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:7.17.0
+  #   ports:
+  #     - "5601:5601"
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #     - ELASTICSEARCH_USERNAME=  # Bỏ qua nếu xpack.security disabled
+  #     - ELASTICSEARCH_PASSWORD=
+  #   depends_on:
+  #     elasticsearch:
+  #       condition: service_healthy
+  #   networks:
+  #     - microservices-net
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # Kafka Topic Creator (Optional - để tạo topics tự động)
   kafka-setup:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.5.3
     depends_on:
       kafka:
         condition: service_healthy
@@ -232,7 +236,6 @@ services:
         echo 'Creating topics...'
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 --partitions 1 --replication-factor 1 --topic user-events
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 --partitions 1 --replication-factor 1 --topic auth-events
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:9093 --partitions 1 --replication-factor 1 --topic logs
         echo 'Topics created successfully!'
       "
     networks:
@@ -246,9 +249,8 @@ volumes:
   zookeeper-data:
   zookeeper-log:
   kafka-data:
-  es-data:
 
 # Networks
 networks:
   microservices-net:
-    driver: bridges
+    driver: bridge

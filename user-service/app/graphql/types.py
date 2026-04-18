@@ -1,5 +1,5 @@
 import strawberry
-from strawberry import Optional
+from typing import Optional
 
 @strawberry.type
 class UserType:
@@ -23,20 +23,20 @@ class UserType:
             created_at=db_user.created_at.isoformat() if db_user.created_at else None,
         )
 
-@strawberry.type
+@strawberry.input
 class CreateUserInput:
     username: str
     email: str
     password: str
     role: str = "Member"
 
-@strawberry.type
+@strawberry.input
 class UpdateUserInput:
     user_id: int
     username: Optional[str] = None
     role: Optional[str] = None
 
-@strawberry.type
+@strawberry.input
 class QueryUserParams:
     page: int = 1
     limit: int = 10

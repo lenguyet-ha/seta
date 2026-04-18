@@ -63,3 +63,8 @@ app.include_router(graphql_app, prefix="/graphql")
 @app.get("/")
 def read_root():
     return {"message": f"Welcome to {settings.PROJECT_NAME}"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
